@@ -39,7 +39,7 @@ public class BrokerAgent extends Agent{
 
 		if (args != null && args.length > 0) {
 			name = (String) args[0];
-			typeOfInsurance = Arrays.asList(((String) args[1]).split("|").clone());
+			typeOfInsurance = Arrays.asList(((String) args[1]).split("\\|"));
 			comission = (String) args[2];
 		}
 
@@ -56,39 +56,47 @@ public class BrokerAgent extends Agent{
 	}
 
 
-	private class OfferInsurance extends CyclicBehaviour {
+	private class OfferInsurance extends Behaviour {
 
 		private MessageTemplate mtAgency;
+		private boolean flagMessage;
 
 		public void action() {
 			mtAgency = MessageTemplate.MatchConversationId("broker-discovery");
 			ACLMessage msg = myAgent.receive(mtAgency);
 
+
 			if (msg != null) {
 				// Message received. Process it
 				ACLMessage reply = msg.createReply();
+				reply.setConversationId("broker-discovery");
+
 				logger.log(Level.INFO,"Broker received message.");
 				String clientTypeOfInsurance = msg.getContent();
+
 				if (typeOfInsurance.contains(clientTypeOfInsurance)) {
-					reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+					reply.setPerformative(ACLMessage.PROPOSE);
 					reply.setContent(comission);
 				} else {
 					reply.setPerformative(ACLMessage.REFUSE);
 				}
+
 				myAgent.send(reply);
+				logger.log(Level.INFO, "Broker " + name + " sent a message to Agency.");
+				flagMessage=true;
+
 			} else {
 				block();
 			}
 		}
-	} 
-
-	private class PurchaseOrdersServer extends CyclicBehaviour {
 
 		@Override
-		public void action() {
-			// TODO Auto-generated method stub
-
+		public boolean done() {
+			if (flagMessage){
+				logger.log(Level.INFO, "Broker " + name + " behaviour OfferInsurance is done.");
+				return true;
+			}
+			else return false;
 		}
-
 	}
 }

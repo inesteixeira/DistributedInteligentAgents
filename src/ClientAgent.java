@@ -27,24 +27,14 @@ public class ClientAgent extends Agent {
             name = (String) args[0];
             typeOfInsurance = (String) args[1];
 
-            System.out.println("Hello! I'm " + name + " and I need a " + typeOfInsurance + "insurance, please.");
-
-            addBehaviour(new AgencyDiscovery());
-            addBehaviour(new RequestInsurance());
-        }
-    }
-
-    private class AgencyDiscovery extends Behaviour {
-
-        @Override
-        public void action() {
+            System.out.println("Hello! I'm " + name + " and I need a " + typeOfInsurance + " insurance, please.");
 
             DFAgentDescription template = new DFAgentDescription();
             ServiceDescription sd = new ServiceDescription();
-            sd.setType("client-agency");
+            sd.setType("agency");
             template.addServices(sd);
             try {
-                DFAgentDescription[] result = DFService.search(myAgent, template);
+                DFAgentDescription[] result = DFService.search(this, template);
                 agency = new AID[result.length];
 
                 for (int i = 0; i < result.length; ++i) {
@@ -57,14 +47,10 @@ public class ClientAgent extends Agent {
                 fe.printStackTrace();
             }
 
-        }
-
-        @Override
-        public boolean done() {
-            logger.log(Level.INFO, "Behaviour AgencyDiscovery done.");
-            return true;
+            addBehaviour(new RequestInsurance());
         }
     }
+
 
     private class RequestInsurance extends Behaviour {
 
@@ -88,6 +74,7 @@ public class ClientAgent extends Agent {
 
                     // Unique value
                     myAgent.send(cfp);
+
                     // Prepare the template to get proposals
                     mt = MessageTemplate.and(MessageTemplate.MatchConversationId("agency-discovery"),
                             MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
@@ -96,9 +83,11 @@ public class ClientAgent extends Agent {
                 case 1:
                     // Receive all proposals/refusals from seller agents
                     ACLMessage reply = myAgent.receive(mt);
+
                     if (reply != null) {
                         bestBroker = reply.getAllReplyTo().hasNext() ? (AID) reply.getAllReplyTo().next() : null;
                         logger.log(Level.INFO, "Broker " + bestBroker.getName() + " is available.");
+                        step=2;
                     } else {
                         block();
                     }
@@ -110,7 +99,7 @@ public class ClientAgent extends Agent {
 
         @Override
         public boolean done() {
-            return bestBroker != null;
+            return step==2 && bestBroker!= null;
         }
     }
 

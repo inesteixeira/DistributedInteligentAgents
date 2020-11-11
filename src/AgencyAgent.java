@@ -2,6 +2,7 @@
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
+import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -24,51 +25,47 @@ public class AgencyAgent extends Agent {
 	// Put agent initializations here   
 
 	protected void setup() {
+
+		// Regitering Agency agents
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName( getAID() );
-		ServiceDescription sd  = new ServiceDescription();
-		sd.setType("client-agency");
-		sd.setName(getLocalName());
-		dfd.addServices(sd);
+		ServiceDescription sdClient  = new ServiceDescription();
+		sdClient.setType("agency");
+		sdClient.setName(getLocalName());
+		dfd.addServices(sdClient);
+		logger.log(Level.INFO, "Subscribing Agency Agent.");
 
 		try {
 			DFService.register(this, dfd );
 		}
 		catch (FIPAException fe) { fe.printStackTrace(); }
 
+		// Subscribing to Agency-Broker
+		logger.log(Level.INFO, "Setting up DF for Broker Discovery.");
+		DFAgentDescription template = new DFAgentDescription();
+		ServiceDescription sdAgency = new ServiceDescription();
+		sdAgency.setType("agency-broker");
+		template.addServices(sdAgency);
+		try {
+			DFAgentDescription[] result = DFService.search(this, template);
+			brokers = new AID[result.length];
+
+			for (int i = 0; i < result.length; ++i) {
+				brokers[i] = result[i].getName();
+				logger.log(Level.INFO,"Broker agent: " + result[i].getName());                }
+		} catch (FIPAException fe) {
+			//agency
+			logger.log(Level.SEVERE, "No brokers found.");
+
+			fe.printStackTrace();
+		}
+
+
+
 		// Perform the request
-		addBehaviour(new BrokerDiscovery());
+		//SequentialBehaviour seqAgency =  new SequentialBehaviour();
+		//seqAgency.addSubBehaviour(new BrokerDiscovery());
 		addBehaviour(new BrokerAssignment());
-	}
-
-	private class BrokerDiscovery extends Behaviour {
-
-		@Override
-		public void action() {
-			DFAgentDescription template = new DFAgentDescription();
-			ServiceDescription sd = new ServiceDescription();
-			sd.setType("agency-broker");
-			template.addServices(sd);
-			try {
-				DFAgentDescription[] result = DFService.search(myAgent, template);
-				brokers = new AID[result.length];
-
-				for (int i = 0; i < result.length; ++i) {
-					brokers[i] = result[i].getName();
-					logger.log(Level.INFO,"Broker agent: " + result[i].getName());                }
-			} catch (FIPAException fe) {
-				//agency
-				logger.log(Level.SEVERE, "No brokers found.");
-
-				fe.printStackTrace();
-			}
-		}
-
-		@Override
-		public boolean done() {
-			logger.log(Level.INFO, "Behaviour BrokerDiscovery done.");
-			return true;
-		}
 	}
 
 
@@ -83,6 +80,7 @@ public class AgencyAgent extends Agent {
 		private int repliesCnt = 0; 
 
 		// The counter of replies from seller agents
+		private ACLMessage clientMsg;
 		private MessageTemplate mtClient;
 		private MessageTemplate mtBroker;
 
@@ -90,13 +88,15 @@ public class AgencyAgent extends Agent {
 		private int step = 0; 
 
 		public void action() {
-
-			mtClient = MessageTemplate.MatchConversationId("agency-discovery");
-			ACLMessage clientMsg = myAgent.receive(mtClient);
+			logger.log(Level.INFO, "Starting Agency Behaviour BrokerAssignment.");
 
 			switch (step) {
 			case 0:
+				mtClient = MessageTemplate.MatchConversationId("agency-discovery");
+				clientMsg = myAgent.receive(mtClient);
+
 				if (clientMsg != null) {
+					System.out.println("Agency received client request.");
 					typeOfInsurance = clientMsg.getContent();
 					step=1;
 				} else {
@@ -116,17 +116,21 @@ public class AgencyAgent extends Agent {
 				// Unique value
 				myAgent.send(cfp);
 				// Prepare the template to get proposals
-				mtBroker = MessageTemplate.and(MessageTemplate.MatchConversationId("broker-discovery"),
-						MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
+				mtBroker = MessageTemplate.MatchConversationId("broker-discovery");
+
+				logger.log(Level.INFO, "Agency is looking for interested brokers.");
 				step = 2;
 				break;
 			case 2:
-				// Receive all proposals/refusals from seller agents       
+				// Receive all proposals/refusals from seller agents
+				logger.log(Level.INFO, "Agency is waiting for all proposals/refusals from broker agents.");
+
 				ACLMessage reply = myAgent.receive(mtBroker);
+
 				if (reply != null) {
 					// Reply received 
-					if (reply.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
-						// This is an offer  
+					if (reply.getPerformative() == ACLMessage.PROPOSE) {
+						// This is an offer
 						double brokerComission = Double.parseDouble(reply.getContent());
 						if (bestBroker == null || brokerComission < bestComission) {
 							// This is the best offer at present             
@@ -136,7 +140,7 @@ public class AgencyAgent extends Agent {
 					}         
 					repliesCnt++;
 					if (repliesCnt >= brokers.length) {
-						// We received all replies
+						// We received all replies.
 						step = 3;
 					}       
 				} 
@@ -146,14 +150,24 @@ public class AgencyAgent extends Agent {
 				break;
 			case 3:
 				ACLMessage replyClient = clientMsg.createReply();
-				replyClient.setPerformative(ACLMessage.INFORM);
+				replyClient.setPerformative(ACLMessage.PROPOSE);
 				replyClient.addReplyTo(bestBroker);
+				myAgent.send(replyClient);
+				step=4;
 
 				break;
 			}           
 		} 
 		public boolean done() { 
-			return ((step==2 && bestBroker == null) || step == 3);
+			if((step==3 && bestBroker == null) || step == 4){
+				logger.log(Level.INFO, "Agency:BrokerAssignment is done. Step = " + step);
+				return true;
+			}
+			else{
+				System.out.println("BrokerAssignment Step: " + step);
+				return false;
+			}
+
 		} 
 	}  // End of inner class RequestPerformer
 
