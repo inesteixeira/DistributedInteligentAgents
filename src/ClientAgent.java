@@ -23,6 +23,11 @@ public class ClientAgent extends Agent {
 
         Object[] args = getArguments();
 
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         if (args != null && args.length > 0) {
             name = (String) args[0];
             typeOfInsurance = (String) args[1];
