@@ -1,9 +1,8 @@
-import java.util.Arrays;
-import java.util.Hashtable;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.*;
 import jade.domain.DFService;
@@ -19,11 +18,20 @@ public class BrokerAgent extends Agent{
 
 	// Put agent initializations here
 	private String name;
-	private List<String> typeOfInsurance;
+	private Map<String,Integer> typeOfInsurance;
 	private String comission;
+	private String insuranceRequested;
+	private String firstCondition;
+	private String secondCondition;
+	private String thirdCondition;
+	private int priceInsurance;
+	private AID client;
+	private int numberOfServedClients = 0;
+	private double rating = 5.0;
+	private List<Integer> ratingHistory = new ArrayList<Integer>();
 
-	protected void setup() { 
-		
+	protected void setup() {
+
 		DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());
         ServiceDescription sd  = new ServiceDescription();
@@ -36,15 +44,27 @@ public class BrokerAgent extends Agent{
         catch (FIPAException fe) { fe.printStackTrace(); }
 
 		Object[] args = getArguments();
+		typeOfInsurance = new HashMap<String, Integer>();
 
 		if (args != null && args.length > 0) {
 			name = (String) args[0];
-			typeOfInsurance = Arrays.asList(((String) args[1]).split("\\|"));
+			//typeOfInsurance = Arrays.asList(((String) args[1]).split("\\|"));
+			for (String insurance : Arrays.asList(((String) args[1]).split("\\|"))){
+				typeOfInsurance.put(insurance,0);
+			}
 			comission = (String) args[2];
 		}
 
+		// Default rating
+		ratingHistory.add(5);
+
 		// Add the behaviour serving requests for offer from agency agent
-		addBehaviour(new OfferInsurance());
+		SequentialBehaviour sequentialBehaviour = new SequentialBehaviour();
+		sequentialBehaviour.addSubBehaviour(new OfferInsurance());
+		sequentialBehaviour.addSubBehaviour(new DetailedInsurance());
+		sequentialBehaviour.addSubBehaviour(new SellInsurance());
+		addBehaviour(sequentialBehaviour);
+
 
 	} 
 	
@@ -74,9 +94,13 @@ public class BrokerAgent extends Agent{
 				logger.log(Level.INFO,"Broker received message.");
 				String clientTypeOfInsurance = msg.getContent();
 
-				if (typeOfInsurance.contains(clientTypeOfInsurance)) {
+				if (typeOfInsurance.containsKey(clientTypeOfInsurance) ) {
+					insuranceRequested = clientTypeOfInsurance;
 					reply.setPerformative(ACLMessage.PROPOSE);
-					reply.setContent(comission);
+					reply.setContent(comission /*+ "|" +
+							numberOfServedClients + "|" +
+							typeOfInsurance.get(insuranceRequested) + "|" +
+							rating*/);
 				} else {
 					reply.setPerformative(ACLMessage.REFUSE);
 				}
@@ -98,5 +122,90 @@ public class BrokerAgent extends Agent{
 			}
 			else return false;
 		}
+	}
+
+	private class DetailedInsurance extends Behaviour {
+
+
+		@Override
+		public void action() {
+			ACLMessage clientMsg = myAgent.receive();
+			logger.log(Level.INFO, "Broker is ready");
+
+			if(clientMsg != null){
+				String content = clientMsg.getContent();
+				logger.log(Level.INFO, "Broker received Client Message: " + content);
+				firstCondition = content.split("\\|")[0];
+				secondCondition = content.split("\\|")[1];
+				thirdCondition = content.split("\\|")[2];
+				client = clientMsg.getSender();
+
+				numberOfServedClients++;
+
+				// get price
+				priceInsurance = 100;
+			}
+			else {
+				block();
+			}
+		}
+
+		@Override
+		public boolean done() {
+			logger.log(Level.INFO, "Broker is done");
+
+			return true;
+		}
+	}
+
+	private class SellInsurance extends Behaviour {
+
+		private int step = 0;
+
+		@Override
+		public void action() {
+			switch (step){
+				case 0:
+					ACLMessage negotiationMsg = new ACLMessage(ACLMessage.CFP);
+					negotiationMsg.setContent(String.valueOf(priceInsurance));
+					negotiationMsg.addReceiver(client);
+					myAgent.send(negotiationMsg);
+
+					step=1;
+					break;
+				case 1:
+					ACLMessage reply = myAgent.receive();
+
+					if (reply != null){
+						if(reply.getPerformative() == ACLMessage.ACCEPT_PROPOSAL){
+							int numberOfInsurances = typeOfInsurance.get(insuranceRequested);
+							typeOfInsurance.put(insuranceRequested, numberOfInsurances + 1);
+						}
+
+						updateRating(Integer.parseInt(reply.getContent()));
+					}
+					else {
+						block();
+					}
+			}
+
+
+
+
+		}
+
+		@Override
+		public boolean done() {
+			return true;
+		}
+	}
+
+	private void updateRating(int newRating){
+		int sum = 0;
+
+		for(Integer rt : ratingHistory){
+			sum += rt;
+		}
+		rating = sum / ratingHistory.size();
 	}
 }

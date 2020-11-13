@@ -1,6 +1,7 @@
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
+import jade.core.behaviours.SequentialBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -17,20 +18,29 @@ public class ClientAgent extends Agent {
     private AID[] agency;
     private AID bestBroker;
 
+    private String firstCondition;
+    private String secondCondition;
+    private String thirdCondition;
+
     private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
     protected void setup() {
 
         Object[] args = getArguments();
-
+        
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
         if (args != null && args.length > 0) {
+
             name = (String) args[0];
             typeOfInsurance = (String) args[1];
+            firstCondition = (String) args[2];
+            secondCondition = (String) args[3];
+            thirdCondition = (String) args[4];
 
             System.out.println("Hello! I'm " + name + " and I need a " + typeOfInsurance + " insurance, please.");
 
@@ -38,6 +48,8 @@ public class ClientAgent extends Agent {
             ServiceDescription sd = new ServiceDescription();
             sd.setType("agency");
             template.addServices(sd);
+
+
             try {
                 DFAgentDescription[] result = DFService.search(this, template);
                 agency = new AID[result.length];
@@ -52,7 +64,11 @@ public class ClientAgent extends Agent {
                 fe.printStackTrace();
             }
 
-            addBehaviour(new RequestInsurance());
+            SequentialBehaviour sequentialBehaviour = new SequentialBehaviour();
+            sequentialBehaviour.addSubBehaviour(new RequestInsurance());
+            sequentialBehaviour.addSubBehaviour(new InformInsurance());
+            sequentialBehaviour.addSubBehaviour(new BuyInsurance());
+            addBehaviour(sequentialBehaviour);
         }
     }
 
@@ -107,5 +123,51 @@ public class ClientAgent extends Agent {
             return step==2 && bestBroker!= null;
         }
     }
+
+    private class InformInsurance extends Behaviour{
+
+        @Override
+        public void action() {
+            logger.log(Level.INFO, "Client sends info to broker.");
+            ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
+            informMsg.addReceiver(bestBroker);
+            informMsg.setContent(firstCondition  + "|" + secondCondition + "|" + thirdCondition);
+            myAgent.send(informMsg);
+        }
+
+        @Override
+        public boolean done() {
+
+            logger.log(Level.INFO, "Client is ready to negotiate insurance.");
+            return true;
+        }
+    }
+
+    private class BuyInsurance extends Behaviour{
+
+
+
+        @Override
+        public void action() {
+            ACLMessage brokerMsg = myAgent.receive();
+
+            if(brokerMsg != null){
+                ACLMessage reply = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+                reply.setContent("7");
+                reply.addReceiver(bestBroker);
+                myAgent.send(reply);
+                logger.log(Level.INFO, "Client accepts message");
+            }
+            else{
+                block();
+            }
+        }
+
+        @Override
+        public boolean done() {
+            return false;
+        }
+    }
+
 
 }

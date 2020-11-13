@@ -60,11 +60,6 @@ public class AgencyAgent extends Agent {
 			fe.printStackTrace();
 		}
 
-
-
-		// Perform the request
-		//SequentialBehaviour seqAgency =  new SequentialBehaviour();
-		//seqAgency.addSubBehaviour(new BrokerDiscovery());
 		addBehaviour(new BrokerAssignment());
 	}
 
@@ -128,6 +123,7 @@ public class AgencyAgent extends Agent {
 				ACLMessage reply = myAgent.receive(mtBroker);
 
 				if (reply != null) {
+					//logger.log(Level.INFO, "step 2 broker message: " + reply.getContent());
 					// Reply received 
 					if (reply.getPerformative() == ACLMessage.PROPOSE) {
 						// This is an offer
