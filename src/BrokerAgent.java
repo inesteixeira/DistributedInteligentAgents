@@ -29,6 +29,7 @@ public class BrokerAgent extends Agent{
 	private int numberOfServedClients = 0;
 	private double rating = 5.0;
 	private List<Integer> ratingHistory = new ArrayList<Integer>();
+	private boolean activeBroker;
 
 	protected void setup() {
 
@@ -79,44 +80,63 @@ public class BrokerAgent extends Agent{
 	private class OfferInsurance extends Behaviour {
 
 		private MessageTemplate mtAgency;
-		private boolean flagMessage;
+		private ACLMessage msg;
+		private int step=0;
 
 		public void action() {
 			mtAgency = MessageTemplate.MatchConversationId("broker-discovery");
-			ACLMessage msg = myAgent.receive(mtAgency);
+			msg = myAgent.receive(mtAgency);
 
+			switch (step){
+				case 0:
+					if (msg != null) {
+						// Message received. Process it
+						ACLMessage reply = msg.createReply();
+						reply.setConversationId("broker-discovery");
 
-			if (msg != null) {
-				// Message received. Process it
-				ACLMessage reply = msg.createReply();
-				reply.setConversationId("broker-discovery");
+						logger.log(Level.INFO,"Broker received message.");
+						String clientTypeOfInsurance = msg.getContent();
 
-				logger.log(Level.INFO,"Broker received message.");
-				String clientTypeOfInsurance = msg.getContent();
-
-				if (typeOfInsurance.containsKey(clientTypeOfInsurance) ) {
-					insuranceRequested = clientTypeOfInsurance;
-					reply.setPerformative(ACLMessage.PROPOSE);
-					reply.setContent(comission /*+ "|" +
+						if (typeOfInsurance.containsKey(clientTypeOfInsurance) ) {
+							insuranceRequested = clientTypeOfInsurance;
+							reply.setPerformative(ACLMessage.PROPOSE);
+							reply.setContent(comission /*+ "|" +
 							numberOfServedClients + "|" +
 							typeOfInsurance.get(insuranceRequested) + "|" +
 							rating*/);
-				} else {
-					reply.setPerformative(ACLMessage.REFUSE);
-				}
+						} else {
+							reply.setPerformative(ACLMessage.REFUSE);
+						}
 
-				myAgent.send(reply);
-				logger.log(Level.INFO, "Broker " + name + " sent a message to Agency.");
-				flagMessage=true;
+						myAgent.send(reply);
+						logger.log(Level.INFO, "Broker " + name + " sent a PROPOSAL to Agency.");
+						step=1;
+						break;
 
-			} else {
-				block();
+					} else {
+						block();
+					}
+
+				case 1:
+					logger.log(Level.INFO,"OfferInsurance Step1 : waiting for agency response to proposal");
+					if(msg!=null){
+
+						if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL){
+							activeBroker = true;
+						}
+						step=2;
+						break;
+					}
+					else{
+						block();
+					}
 			}
+
 		}
 
 		@Override
 		public boolean done() {
-			if (flagMessage){
+			if (step==2){
 				logger.log(Level.INFO, "Broker " + name + " behaviour OfferInsurance is done.");
 				return true;
 			}
@@ -126,33 +146,40 @@ public class BrokerAgent extends Agent{
 
 	private class DetailedInsurance extends Behaviour {
 
+		private ACLMessage clientMsg;
 
 		@Override
 		public void action() {
-			ACLMessage clientMsg = myAgent.receive();
-			logger.log(Level.INFO, "Broker is ready");
 
-			if(clientMsg != null){
-				String content = clientMsg.getContent();
-				logger.log(Level.INFO, "Broker received Client Message: " + content);
-				firstCondition = content.split("\\|")[0];
-				secondCondition = content.split("\\|")[1];
-				thirdCondition = content.split("\\|")[2];
-				client = clientMsg.getSender();
+			if(activeBroker){
+				logger.log(Level.INFO,"DetailedInsurance: Broker " + name + " is the active Broker.");
 
-				numberOfServedClients++;
+				MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+						MessageTemplate.MatchConversationId("insurance-details"));
+				clientMsg = myAgent.receive(template);
 
-				// get price
-				priceInsurance = 100;
-			}
-			else {
-				block();
+				if(clientMsg != null){
+					String content = clientMsg.getContent();
+					logger.log(Level.INFO, "Broker received Client details: " + content);
+					firstCondition = content.split("\\|")[0];
+					secondCondition = content.split("\\|")[1];
+					thirdCondition = content.split("\\|")[2];
+					client = clientMsg.getSender();
+
+					numberOfServedClients++;
+
+					// get price
+					priceInsurance = 100;
+				}
+				else {
+					block();
+				}
 			}
 		}
 
 		@Override
 		public boolean done() {
-			logger.log(Level.INFO, "Broker is done");
+			logger.log(Level.INFO, "DetailedInsurance: Broker " + name + " is done");
 
 			return true;
 		}
@@ -160,38 +187,42 @@ public class BrokerAgent extends Agent{
 
 	private class SellInsurance extends Behaviour {
 
+
 		private int step = 0;
 
 		@Override
 		public void action() {
-			switch (step){
-				case 0:
-					ACLMessage negotiationMsg = new ACLMessage(ACLMessage.CFP);
-					negotiationMsg.setContent(String.valueOf(priceInsurance));
-					negotiationMsg.addReceiver(client);
-					myAgent.send(negotiationMsg);
 
-					step=1;
-					break;
-				case 1:
-					ACLMessage reply = myAgent.receive();
+			if(activeBroker){
 
-					if (reply != null){
-						if(reply.getPerformative() == ACLMessage.ACCEPT_PROPOSAL){
-							int numberOfInsurances = typeOfInsurance.get(insuranceRequested);
-							typeOfInsurance.put(insuranceRequested, numberOfInsurances + 1);
+				logger.log(Level.INFO, "Broker " + name + " is ready to sell insurance.");
+
+				switch (step){
+					case 0:
+						ACLMessage negotiationMsg = new ACLMessage(ACLMessage.CFP);
+						negotiationMsg.setContent(String.valueOf(priceInsurance));
+						negotiationMsg.addReceiver(client);
+						myAgent.send(negotiationMsg);
+
+						step=1;
+						break;
+					case 1:
+						ACLMessage reply = myAgent.receive();
+
+						if (reply != null){
+							if(reply.getPerformative() == ACLMessage.ACCEPT_PROPOSAL){
+								int numberOfInsurances = typeOfInsurance.get(insuranceRequested);
+								typeOfInsurance.put(insuranceRequested, numberOfInsurances + 1);
+							}
+
+							updateRating(Integer.parseInt(reply.getContent()));
 						}
+						else {
+							block();
+						}
+				}
 
-						updateRating(Integer.parseInt(reply.getContent()));
-					}
-					else {
-						block();
-					}
 			}
-
-
-
-
 		}
 
 		@Override

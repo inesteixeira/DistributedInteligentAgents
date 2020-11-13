@@ -76,6 +76,7 @@ public class AgencyAgent extends Agent {
 
 		// The counter of replies from seller agents
 		private ACLMessage clientMsg;
+		private ACLMessage cfpBroker;
 		private MessageTemplate mtClient;
 		private MessageTemplate mtBroker;
 
@@ -83,6 +84,8 @@ public class AgencyAgent extends Agent {
 		private int step = 0; 
 
 		public void action() {
+			//ACLMessage reply;
+
 			logger.log(Level.INFO, "Starting Agency Behaviour BrokerAssignment.");
 
 			switch (step) {
@@ -100,16 +103,17 @@ public class AgencyAgent extends Agent {
 				break;
 			case 1:
 				// Send the cfp to Brokers
-				ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+				cfpBroker = new ACLMessage(ACLMessage.CFP);
+
 				for (int i = 0; i < brokers.length; ++i) {
-					cfp.addReceiver(brokers[i]);
+					cfpBroker.addReceiver(brokers[i]);
 				}
-				cfp.setContent(typeOfInsurance);
-				cfp.setConversationId("broker-discovery");
-				cfp.setReplyWith("cfp" + System.currentTimeMillis());
+				cfpBroker.setContent(typeOfInsurance);
+				cfpBroker.setConversationId("broker-discovery");
+				cfpBroker.setReplyWith("cfp" + System.currentTimeMillis());
 
 				// Unique value
-				myAgent.send(cfp);
+				myAgent.send(cfpBroker);
 				// Prepare the template to get proposals
 				mtBroker = MessageTemplate.MatchConversationId("broker-discovery");
 
@@ -120,52 +124,68 @@ public class AgencyAgent extends Agent {
 				// Receive all proposals/refusals from seller agents
 				logger.log(Level.INFO, "Agency is waiting for all proposals/refusals from broker agents.");
 
-				ACLMessage reply = myAgent.receive(mtBroker);
+				cfpBroker = myAgent.receive(mtBroker);
 
-				if (reply != null) {
+				if (cfpBroker != null) {
 					//logger.log(Level.INFO, "step 2 broker message: " + reply.getContent());
 					// Reply received 
-					if (reply.getPerformative() == ACLMessage.PROPOSE) {
+					if (cfpBroker.getPerformative() == ACLMessage.PROPOSE) {
 						// This is an offer
-						double brokerComission = Double.parseDouble(reply.getContent());
+						double brokerComission = Double.parseDouble(cfpBroker.getContent());
 						if (bestBroker == null || brokerComission < bestComission) {
 							// This is the best offer at present             
 							bestComission = brokerComission;
-							bestBroker = reply.getSender();
+							bestBroker = cfpBroker.getSender();
 						}         
 					}         
 					repliesCnt++;
 					if (repliesCnt >= brokers.length) {
 						// We received all replies.
+						for(AID broker : brokers){
+							if(broker.equals(bestBroker)){
+								ACLMessage replyBestBroker = cfpBroker.createReply();
+								replyBestBroker.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+								replyBestBroker.addReceiver(bestBroker);
+								logger.log(Level.INFO, "Agency sent ACCEPT PROPOSAL to Best Broker " + bestBroker.getLocalName());
+								myAgent.send(replyBestBroker);
+							}
+							else{
+								ACLMessage replyOthersBrokers = cfpBroker.createReply();
+								replyOthersBrokers.setPerformative(ACLMessage.REFUSE);
+								replyOthersBrokers.addReceiver(broker);
+								myAgent.send(replyOthersBrokers);
+								logger.log(Level.INFO, "Agency sent REFUSE to broker: " + broker.getName());
+							}
+						}
 						step = 3;
-					}       
+					}
 				} 
 				else { 
 					block();
 				}
 				break;
 			case 3:
-				ACLMessage replyClient = clientMsg.createReply();
-				replyClient.setPerformative(ACLMessage.PROPOSE);
-				replyClient.addReplyTo(bestBroker);
-				myAgent.send(replyClient);
-				step=4;
-
-				break;
+					logger.log(Level.INFO, "Best Broker is choosen: " + bestBroker.getName());
+					ACLMessage replyClient = clientMsg.createReply();
+					replyClient.setPerformative(ACLMessage.PROPOSE);
+					replyClient.addReplyTo(bestBroker);
+					myAgent.send(replyClient);
+					step=4;
 			}           
-		} 
+		}
+
 		public boolean done() { 
 			if((step==3 && bestBroker == null) || step == 4){
 				logger.log(Level.INFO, "Agency:BrokerAssignment is done. Step = " + step);
 				return true;
 			}
 			else{
-				System.out.println("BrokerAssignment Step: " + step);
+				logger.log(Level.INFO,"BrokerAssignment Step: " + step);
 				return false;
 			}
 
 		} 
-	}  // End of inner class RequestPerformer
+	}
 
 }
 

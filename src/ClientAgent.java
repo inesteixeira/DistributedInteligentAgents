@@ -86,8 +86,8 @@ public class ClientAgent extends Agent {
                 case 0:
                     // Send the cfp to Agency
                     ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
-                    for (int i = 0; i < agency.length; ++i) {
-                        cfp.addReceiver(agency[i]);
+                    for (AID aid : agency) {
+                        cfp.addReceiver(aid);
                     }
                     cfp.setContent(typeOfInsurance);
                     cfp.setConversationId("agency-discovery");
@@ -107,8 +107,8 @@ public class ClientAgent extends Agent {
 
                     if (reply != null) {
                         bestBroker = reply.getAllReplyTo().hasNext() ? (AID) reply.getAllReplyTo().next() : null;
-                        logger.log(Level.INFO, "Broker " + bestBroker.getName() + " is available.");
-                        step=2;
+                        logger.log(Level.INFO, "Broker " + bestBroker.getName()+ " is available.");
+                        step = 2;
                     } else {
                         block();
                     }
@@ -120,7 +120,7 @@ public class ClientAgent extends Agent {
 
         @Override
         public boolean done() {
-            return step==2 && bestBroker!= null;
+            return (step == 2 && bestBroker != null);
         }
     }
 
@@ -128,11 +128,16 @@ public class ClientAgent extends Agent {
 
         @Override
         public void action() {
-            logger.log(Level.INFO, "Client sends info to broker.");
+            MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
+                    MessageTemplate.MatchConversationId("insurance-details"));
+
+            logger.log(Level.INFO, "Client sends info to broker: " + firstCondition  + "|" + secondCondition + "|" + thirdCondition);
             ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
+            informMsg.setConversationId("insurance-details");
             informMsg.addReceiver(bestBroker);
             informMsg.setContent(firstCondition  + "|" + secondCondition + "|" + thirdCondition);
             myAgent.send(informMsg);
+            logger.log(Level.INFO, "INFORM INSURANCE CONVERSATION_ID: " + informMsg.getConversationId());
         }
 
         @Override
@@ -144,8 +149,6 @@ public class ClientAgent extends Agent {
     }
 
     private class BuyInsurance extends Behaviour{
-
-
 
         @Override
         public void action() {
