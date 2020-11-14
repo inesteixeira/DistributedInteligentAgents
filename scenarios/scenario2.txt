@@ -1,0 +1,53 @@
+-- SCENARIO 2
+-- This scenario has a Client named Ines who tries to buy an Insurance of type "Vehicle".
+-- Agency select broker3 (Mary) as the Best Broker due to lower comission.
+-- Broker Mary defines a price for the insurance.
+-- Since Client has a negotiator profile set to true, tries to lower the price of insurance (Maximum Discount = 20%).
+-- Broker Mary allows for a discount to be applied. Being is Maximum Discount of 25%, Broker Mary Accepts new price proposal from client Ines with 20% discount.
+-- Ines buys the insurance to Broker Mary.
+-- Ines gives a High Rating to Broker Mary.
+
+-- TO SUBSTITUTE ON CLASS Main.java
+
+AgentController agency = mainContainer.createNewAgent("agency",
+					"com.aiad.agents.AgencyAgent", new Object[0]);
+
+AgentController client = mainContainer.createNewAgent("client",
+					"com.aiad.agents.ClientAgent"
+					, new String[]{
+							"Ines",
+							"Vehicle",
+							"23",
+							"Car",  // Car Truck or Moto
+							"2001", // LICENSE PLATE YEAR
+							"true", // Negotiates?
+							"10",   // Minimum discount it asks for
+							"20"}); // Maximum discount it asks for
+							
+
+AgentController broker1 = mainContainer.createNewAgent("Peter",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"Peter",
+							"Vehicle|House", // Types of insurances
+							"0.80",			 // Comission
+							"true",          // Applies discount?
+							"30"});          // Maximum discount applied
+							
+AgentController broker2 = mainContainer.createNewAgent("John",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"John",
+							"House|Health",
+							"0.60",
+							"true",
+							"20"});
+
+AgentController broker3 = mainContainer.createNewAgent("Mary",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"Mary",
+							"Vehicle|House",
+							"0.70",
+							"true",
+							"25"});

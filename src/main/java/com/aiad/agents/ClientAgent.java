@@ -17,19 +17,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ClientAgent extends Agent {
+
+    private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+
     private String name;
     private String typeOfInsurance;
     private AID[] agency;
     private AID bestBroker;
-
     private String firstCondition;
     private String secondCondition;
     private String thirdCondition;
     private Boolean isNegotiator;
     private int maxDiscount;
     private int minDiscount;
-
-    private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
     protected void setup() {
 

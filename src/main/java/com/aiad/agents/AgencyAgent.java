@@ -1,36 +1,26 @@
 package com.aiad.agents;
 
-import com.aiad.components.api.DroolsCache;
 import com.aiad.components.api.EventsTrigger;
-import com.aiad.components.impl.DroolsCacheImpl;
-import com.aiad.components.impl.EventsTriggerImpl;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
-import jade.core.behaviours.SequentialBehaviour;
-import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
-import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
-import java.io.IOException;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AgencyAgent extends Agent {
 	
 	private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
-
-	// The title of the book to buy 
 	private String typeOfInsurance;
-	// The list of known seller agents 
 	private AID[] brokers;
 	private EventsTrigger eventsTrigger;
-	// Put agent initializations here   
 
 	protected void setup() {
 
@@ -62,7 +52,6 @@ public class AgencyAgent extends Agent {
 				brokers[i] = result[i].getName();
 				System.out.println("Broker agent: " + result[i].getName());                }
 		} catch (FIPAException fe) {
-			//agency
 			logger.log(Level.SEVERE, "No brokers found.");
 
 			fe.printStackTrace();
@@ -75,20 +64,10 @@ public class AgencyAgent extends Agent {
 	private class BrokerAssignment extends Behaviour {
 
 		private AID bestBroker;
-
-		// The agent who provides the best offer
 		private double bestComission = 1;
-
-		// The best offered price
 		private int repliesCnt = 0;
-
-		// The counter of replies from seller agents
 		private ACLMessage clientMsg;
-		private ACLMessage cfpBroker;
-		private MessageTemplate mtClient;
 		private MessageTemplate mtBroker;
-
-		// The template to receive replies
 		private int step = 0;
 
 		public void action() {
@@ -96,7 +75,7 @@ public class AgencyAgent extends Agent {
 
 			switch (step) {
 			case 0:
-				mtClient = MessageTemplate.MatchConversationId("agency-discovery");
+				MessageTemplate mtClient = MessageTemplate.MatchConversationId("agency-discovery");
 				clientMsg = myAgent.receive(mtClient);
 
 				if (clientMsg != null) {
@@ -117,9 +96,7 @@ public class AgencyAgent extends Agent {
 				cfpBroker.setConversationId("broker-discovery");
 				cfpBroker.setReplyWith("cfp" + System.currentTimeMillis());
 
-				// Unique value
 				myAgent.send(cfpBroker);
-				// Prepare the template to get proposals
 				mtBroker = MessageTemplate.MatchConversationId("broker-discovery");
 
 				System.out.println( "Agency is looking for interested brokers.");
@@ -135,10 +112,8 @@ public class AgencyAgent extends Agent {
 					//logger.info( "step 2 broker message: " + reply.getContent());
 					// Reply received
 					if (cfpBroker.getPerformative() == ACLMessage.PROPOSE) {
-						// This is an offer
 						double brokerComission = Double.parseDouble(cfpBroker.getContent());
 						if (bestBroker == null || brokerComission < bestComission) {
-							// This is the best offer at present
 							bestComission = brokerComission;
 							bestBroker = cfpBroker.getSender();
 							//logger.info("... best broker " + bestBroker.getName());
@@ -212,7 +187,7 @@ public class AgencyAgent extends Agent {
 			}
 
 		} 
-	}  // End of inner class RequestPerformer
+	}
 
 }
 

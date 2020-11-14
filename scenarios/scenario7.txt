@@ -1,0 +1,49 @@
+-- SCENARIO 6
+-- This scenario has a Client named Ines who tries to buy an Insurance of type "House".
+-- No broker sells insurances of type House.
+-- Program ends.
+
+-- TO SUBSTITUTE ON CLASS Main.java
+
+AgentController agency = mainContainer.createNewAgent("agency",
+					"com.aiad.agents.AgencyAgent", new Object[0]);
+
+AgentController client = mainContainer.createNewAgent("client",
+					"com.aiad.agents.ClientAgent"
+					, new String[]{
+							"Ines",
+							"House",
+							"23",
+							"Apartment", // House Apartment or Farm building
+							"Urban", // Urban or Rural
+							"false",
+							"10",
+							"20"});
+							
+
+AgentController broker1 = mainContainer.createNewAgent("Peter",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"Peter",
+							"Vehicle",       // Types of insurances
+							"0.80",			 // Comission
+							"true",          // Applies discount?
+							"30"});          // Maximum discount applied
+							
+AgentController broker2 = mainContainer.createNewAgent("John",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"John",
+							"Vehicle|Health",
+							"0.60",
+							"true",
+							"20"});
+
+AgentController broker3 = mainContainer.createNewAgent("Mary",
+					"com.aiad.agents.BrokerAgent"
+					, new String[]{
+							"Mary",
+							"Vehicle|Health",
+							"0.70",
+							"true",
+							"15"});

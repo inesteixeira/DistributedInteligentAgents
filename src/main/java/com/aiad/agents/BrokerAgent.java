@@ -9,14 +9,12 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.SequentialBehaviour;
-import jade.core.event.MessageAdapter;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import sun.plugin2.message.Message;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -25,7 +23,6 @@ public class BrokerAgent extends Agent {
 
     private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
-    // Put agent initializations here
     private String name;
     private Map<String, Integer> typeOfInsurance;
     private String comission;
