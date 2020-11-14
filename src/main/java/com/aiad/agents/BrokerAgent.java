@@ -169,11 +169,17 @@ public class BrokerAgent extends Agent {
                     client = clientMsg.getSender();
 
                     // Get price from rules engine
-                    priceInsurance = calculatePrice(
-							insuranceRequested,
-							content.split("\\|")[0],
-							content.split("\\|")[1],
-							content.split("\\|")[2]);
+                    try{
+                        priceInsurance = calculatePrice(
+                                insuranceRequested,
+                                content.split("\\|")[0],
+                                content.split("\\|")[1],
+                                content.split("\\|")[2]);
+                    } catch (Exception e) {
+                        System.out.println("Rules Engine price calculation failed: " + e.getMessage() + ". Set default value of 200.");
+                        priceInsurance = 200;
+                    }
+
                 } else {
                     block();
                 }
