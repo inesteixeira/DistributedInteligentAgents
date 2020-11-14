@@ -34,9 +34,9 @@ public class DroolsCacheImpl implements DroolsCache {
 
     @Override
     public KieSession getSession(String key) {
-        logger.info("Getting KieBase " + key);
+        //logger.info("Getting KieBase " + key);
         KieBase kieBase = droolscache.get(key);
-        logger.info("Got KieBase " + String.valueOf(kieBase != null));
+        //logger.info("Got KieBase " + String.valueOf(kieBase != null));
         KieSession kieSession = null;
 
         if (kieBase != null) {
@@ -44,7 +44,7 @@ public class DroolsCacheImpl implements DroolsCache {
             kieSession = droolscache.get(key).newKieSession();
 
         }
-        logger.info("Got kieSession " + String.valueOf(kieSession != null));
+        //logger.info("Got kieSession " + String.valueOf(kieSession != null));
         return kieSession;
     }
 
@@ -61,7 +61,7 @@ public class DroolsCacheImpl implements DroolsCache {
 
     private void readPoliciesFromFileSystem(List<String> policyList) throws IOException {
 
-        logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_getKieSession_Start);
+        //logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_getKieSession_Start);
 
         for (String policy : policyList) {
 
@@ -70,11 +70,11 @@ public class DroolsCacheImpl implements DroolsCache {
             String fullFilePath = new File(".").getCanonicalPath() + "\\" + fullFileName;
             //String fullFilePath = new File(getClass().getClassLoader().getResource(droolsCacheFilepath + fullFileName).getFile()).getAbsolutePath();
             //File ruleSetFile = new File(getClass().getClassLoader().getResource("policies/events_1.0.0.jar").getFile());
-            logger.info("Loading KieBase from path " + fullFilePath);
+            //logger.info("Loading KieBase from path " + fullFilePath);
             KieBase kieBase = loadKnowlegdeBaseFromFilePath(fullFilePath);
-            logger.info("Loaded KieBase " + String.valueOf(kieBase != null));
+            //logger.info("Loaded KieBase " + String.valueOf(kieBase != null));
             if (kieBase != null) {
-                logger.info("key session policy " + policy);
+                //logger.info("key session policy " + policy);
                 droolscache.put(policy, kieBase);
 
             }
@@ -84,7 +84,7 @@ public class DroolsCacheImpl implements DroolsCache {
 
     private KieBase loadKnowlegdeBaseFromFilePath(String filepath) {
 
-        logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_loadKnowlegdeBaseFromInputStream_Start);
+        //logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_loadKnowlegdeBaseFromInputStream_Start);
 
         KieBase kiebase = null;
 
@@ -102,19 +102,19 @@ public class DroolsCacheImpl implements DroolsCache {
                 KieRepository kr = KIE_SERVICES_INSTANCE.getRepository();
                 KieModule kModule = kr.addKieModule(KIE_SERVICES_INSTANCE.getResources().newInputStreamResource(is));
 
-                logger.info(Constants.DebugMessage_KieKnowledgeBaseFactory_LoadingModuleRelease + kModule.getReleaseId().toString());
+                //logger.info(Constants.DebugMessage_KieKnowledgeBaseFactory_LoadingModuleRelease + kModule.getReleaseId().toString());
 
                 KieContainer kieContainer = KIE_SERVICES_INSTANCE.newKieContainer(kModule.getReleaseId());
                 KieBaseConfiguration kbconf = KIE_SERVICES_INSTANCE.newKieBaseConfiguration();
 
                 kiebase = kieContainer.newKieBase(kbconf);
 
-                logger.info(Constants.DebugMessage_KieKnowledgeBaseFactory_LoadedModuleRelease);
-                logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_loadKnowlegdeBaseFromInputStream_End);
+                //logger.info(Constants.DebugMessage_KieKnowledgeBaseFactory_LoadedModuleRelease);
+                //logger.info(Constants.InfoMessage_KieKnowledgeBaseFactory_loadKnowlegdeBaseFromInputStream_End);
 
             } catch (IOException e) {
 
-                logger.severe(e.getMessage());
+                //logger.severe(e.getMessage());
             }
         }
 

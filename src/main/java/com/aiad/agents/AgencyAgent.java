@@ -1,4 +1,4 @@
-package com.aiad;
+package com.aiad.agents;
 
 import com.aiad.components.api.DroolsCache;
 import com.aiad.components.api.EventsTrigger;
@@ -49,7 +49,7 @@ public class AgencyAgent extends Agent {
 		catch (FIPAException fe) { fe.printStackTrace(); }
 
 		// Subscribing to Agency-Broker
-		System.out.println( "Setting up DF for Broker Discovery.");
+		//logger.info( "Setting up DF for Broker Discovery.");
 		DFAgentDescription template = new DFAgentDescription();
 		ServiceDescription sdAgency = new ServiceDescription();
 		sdAgency.setType("agency-broker");
@@ -80,7 +80,7 @@ public class AgencyAgent extends Agent {
 		private double bestComission = 1;
 
 		// The best offered price
-		private int repliesCnt = 0; 
+		private int repliesCnt = 0;
 
 		// The counter of replies from seller agents
 		private ACLMessage clientMsg;
@@ -89,10 +89,10 @@ public class AgencyAgent extends Agent {
 		private MessageTemplate mtBroker;
 
 		// The template to receive replies
-		private int step = 0; 
+		private int step = 0;
 
 		public void action() {
-			System.out.println( "Starting Agency Behaviour BrokerAssignment.");
+			//logger.info( "Starting Agency Behaviour BrokerAssignment.");
 
 			switch (step) {
 			case 0:
@@ -132,32 +132,43 @@ public class AgencyAgent extends Agent {
 				cfpBroker = myAgent.receive(mtBroker);
 
 				if (cfpBroker != null) {
-					//System.out.println( "step 2 broker message: " + reply.getContent());
-					// Reply received 
+					//logger.info( "step 2 broker message: " + reply.getContent());
+					// Reply received
 					if (cfpBroker.getPerformative() == ACLMessage.PROPOSE) {
 						// This is an offer
 						double brokerComission = Double.parseDouble(cfpBroker.getContent());
 						if (bestBroker == null || brokerComission < bestComission) {
-							// This is the best offer at present             
+							// This is the best offer at present
 							bestComission = brokerComission;
 							bestBroker = cfpBroker.getSender();
-							System.out.println("... best broker " + bestBroker.getName());
-						}         
-					}         
+							//logger.info("... best broker " + bestBroker.getName());
+						}
+					}
 					repliesCnt++;
 					if (repliesCnt >= brokers.length) {
-						System.out.println("Best broker " + bestBroker.getName());
+						//logger.info("Best broker " + bestBroker.getName());
 						// We received all replies.
 						for(AID broker : brokers){
-							System.out.println(broker.getLocalName() + " == " + bestBroker.getLocalName());
-							if(broker.getLocalName().equals(bestBroker.getLocalName())){
-								ACLMessage replyBestBroker = cfpBroker.createReply();
-								replyBestBroker.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-								replyBestBroker.setConversationId(broker.getLocalName());
-								replyBestBroker.addReceiver(bestBroker);
-								replyBestBroker.setContent("You are the chosen one.");
-								System.out.println( "Agency sent ACCEPT PROPOSAL to Best Broker " + bestBroker.getLocalName() + " + " + replyBestBroker.getContent());
-								myAgent.send(replyBestBroker);
+							//logger.info(broker.getLocalName() + " == " + bestBroker.getLocalName());
+							if(bestBroker != null) {
+								if (broker.getLocalName().equals(bestBroker.getLocalName())) {
+									ACLMessage replyBestBroker = cfpBroker.createReply();
+									replyBestBroker.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+									replyBestBroker.setConversationId(broker.getLocalName());
+									replyBestBroker.addReceiver(bestBroker);
+									replyBestBroker.setContent("You are the chosen one.");
+									System.out.println("Agency sent ACCEPT PROPOSAL to broker " + bestBroker.getLocalName());// + " + " + replyBestBroker.getContent());
+									myAgent.send(replyBestBroker);
+								}
+								else{
+									ACLMessage replyOthersBrokers = cfpBroker.createReply();
+									replyOthersBrokers.setPerformative(ACLMessage.REFUSE);
+									replyOthersBrokers.setConversationId(broker.getLocalName());
+									replyOthersBrokers.addReceiver(broker);
+									replyOthersBrokers.setContent("You are NOT the chosen one.");
+									myAgent.send(replyOthersBrokers);
+									System.out.println("Agency sent REFUSE to broker " + broker.getLocalName());// + " + " + replyOthersBrokers.getContent());
+								}
 							}
 							else{
 								ACLMessage replyOthersBrokers = cfpBroker.createReply();
@@ -166,13 +177,17 @@ public class AgencyAgent extends Agent {
 								replyOthersBrokers.addReceiver(broker);
 								replyOthersBrokers.setContent("You are NOT the chosen one.");
 								myAgent.send(replyOthersBrokers);
-								System.out.println("Agency sent REFUSE to broker: " + broker.getName() + " + " + replyOthersBrokers.getContent());
+								System.out.println("Agency sent REFUSE to broker " + broker.getLocalName());// + " + " + replyOthersBrokers.getContent());
+
+								ACLMessage replyClient = clientMsg.createReply();
+								replyClient.setPerformative(ACLMessage.REFUSE);
+								myAgent.send(replyClient);
 							}
 						}
 						step = 3;
-					}       
-				} 
-				else { 
+					}
+				}
+				else {
 					block();
 				}
 				break;
@@ -184,15 +199,15 @@ public class AgencyAgent extends Agent {
 				step=4;
 
 				break;
-			}           
-		} 
-		public boolean done() { 
+			}
+		}
+		public boolean done() {
 			if((step==3 && bestBroker == null) || step == 4){
-				System.out.println( "Agency:BrokerAssignment is done. Step = " + step);
+				//logger.info( "Agency:BrokerAssignment is done. Step = " + step);
 				return true;
 			}
 			else{
-				System.out.println("BrokerAssignment Step: " + step);
+				//logger.info("BrokerAssignment Step: " + step);
 				return false;
 			}
 

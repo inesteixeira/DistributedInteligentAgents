@@ -1,5 +1,8 @@
-package com.aiad;
+package com.aiad.agents;
 
+import com.aiad.Health;
+import com.aiad.House;
+import com.aiad.Vehicle;
 import com.aiad.components.api.EventsTrigger;
 import com.aiad.components.impl.EventsTriggerImpl;
 import jade.core.AID;
@@ -29,9 +32,8 @@ public class BrokerAgent extends Agent {
     private String insuranceRequested;
     private int priceInsurance;
     private AID client;
-    private int numberOfServedClients = 0;
     private double rating = 5.0;
-    private List<Integer> ratingHistory = new ArrayList<Integer>();
+    private final List<Integer> ratingHistory = new ArrayList<Integer>();
     private boolean activeBroker;
     private boolean appliesDiscount;
     private int maxDiscount;
@@ -55,7 +57,7 @@ public class BrokerAgent extends Agent {
 
         if (args != null && args.length > 0) {
             name = (String) args[0];
-            //typeOfInsurance = Arrays.asList(((String) args[1]).split("\\|"));
+
             for (String insurance : Arrays.asList(((String) args[1]).split("\\|"))) {
                 typeOfInsurance.put(insurance, 0);
             }
@@ -84,15 +86,6 @@ public class BrokerAgent extends Agent {
         System.out.println("Seller-agent " + getAID().getName() + " terminating.");
     }
 
-    private void updateRating(int newRating) {
-        int sum = 0;
-
-        for (Integer rt : ratingHistory) {
-            sum += rt;
-        }
-        rating = sum / ratingHistory.size();
-    }
-
     private class OfferInsurance extends Behaviour {
 
         private MessageTemplate mtAgency;
@@ -110,22 +103,20 @@ public class BrokerAgent extends Agent {
                         ACLMessage reply = msg.createReply();
                         reply.setConversationId("broker-discovery");
 
-                        System.out.println("Broker received message.");
+                        //logger.info("Broker received message.");
                         String clientTypeOfInsurance = msg.getContent();
 
                         if (typeOfInsurance.containsKey(clientTypeOfInsurance)) {
                             insuranceRequested = clientTypeOfInsurance;
                             reply.setPerformative(ACLMessage.PROPOSE);
-                            reply.setContent(comission /*+ "|" +
-							numberOfServedClients + "|" +
-							typeOfInsurance.get(insuranceRequested) + "|" +
-							rating*/);
+                            System.out.println("Broker " + name + " sent a PROPOSAL to Agency.");
+                            reply.setContent(comission);
                         } else {
                             reply.setPerformative(ACLMessage.REFUSE);
+                            System.out.println("Broker " + name + " sent a REFUSE to Agency.");
                         }
 
                         myAgent.send(reply);
-                        System.out.println("Broker " + name + " sent a PROPOSAL to Agency.");
                         step = 1;
                         break;
 
@@ -133,11 +124,11 @@ public class BrokerAgent extends Agent {
                         block();
                     }
                 case 1:
-                    System.out.println("OfferInsurance Step1 : waiting for agency response to proposal");
+                    //logger.info("OfferInsurance Step1 : waiting for agency response to proposal");
                     MessageTemplate mt = MessageTemplate.MatchConversationId(this.getAgent().getLocalName());
                     ACLMessage newMsg = myAgent.receive(mt);
                     if (newMsg != null) {
-                        System.out.println(name + ": " + newMsg.getPerformative() + " + " + newMsg.getContent());
+                        //logger.info(name + ": " + newMsg.getPerformative() + " + " + newMsg.getContent());
                         if (newMsg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                             activeBroker = true;
                         }
@@ -152,7 +143,7 @@ public class BrokerAgent extends Agent {
         @Override
         public boolean done() {
             if (step == 2) {
-                System.out.println("Broker " + name + " behaviour OfferInsurance is done.");
+                //logger.info("Broker " + name + " behaviour OfferInsurance is done.");
                 return true;
             } else return false;
         }
@@ -160,49 +151,39 @@ public class BrokerAgent extends Agent {
 
     private class DetailedInsurance extends Behaviour {
 
-        private ACLMessage clientMsg;
-
         @Override
         public void action() {
-            System.out.println("Broker is ready");
+            //logger.info("Broker is ready");
 
             if (activeBroker) {
-                System.out.println("DetailedInsurance: Broker " + name + " is the active Broker.");
+                System.out.println("Broker " + name + " is the active Broker.");
 
                 MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
                         MessageTemplate.MatchConversationId("insurance-details"));
-                clientMsg = myAgent.receive(template);
+                ACLMessage clientMsg = myAgent.receive(template);
 
                 if (clientMsg != null) {
                     String content = clientMsg.getContent();
-                    System.out.println("Broker received Client Message: " + content);
+                    //logger.info("Broker received Client Message: " + content);
 
                     client = clientMsg.getSender();
-                    numberOfServedClients++;
 
-                    // get price
+                    // Get price from rules engine
                     priceInsurance = calculatePrice(
 							insuranceRequested,
 							content.split("\\|")[0],
 							content.split("\\|")[1],
 							content.split("\\|")[2]);
                 } else {
-                    System.out.println("DetailedInsurance: Broker " + name + " is blocked");
                     block();
-
-                    //blockingReceive(template);
                 }
             }
         }
 
         @Override
         public boolean done() {
-            if (activeBroker && priceInsurance == 0)
-                return false;
-            else {
-                System.out.println("DetailedInsurance: Broker " + name + " is done and priceInsurance: " + priceInsurance);
-                return true;
-            }
+            //logger.info("DetailedInsurance: Broker " + name + " is done and priceInsurance: " + priceInsurance);
+            return !activeBroker || priceInsurance != 0;
         }
     }
 
@@ -221,7 +202,7 @@ public class BrokerAgent extends Agent {
                         ACLMessage negotiationMsg = new ACLMessage(ACLMessage.CFP);
                         negotiationMsg.setConversationId("round1-negotiation");
                         negotiationMsg.setContent(String.valueOf(priceInsurance));
-                        System.out.println("Broker round1 price: " + priceInsurance);
+                        System.out.println("Broker initial price offer: " + priceInsurance);
                         negotiationMsg.addReceiver(client);
                         myAgent.send(negotiationMsg);
 
@@ -255,7 +236,7 @@ public class BrokerAgent extends Agent {
                                 typeOfInsurance.put(insuranceRequested, numberOfInsurances + 1);
                                 updateRating(Integer.parseInt(reply.getContent()));
                                 proposalTerminated = true;
-                                System.out.println("Broker " + name + " sold insurance to client (first price).");
+                                System.out.println("Broker " + name + " sold insurance to client.");
                             }
                         } else {
                             block();
@@ -270,7 +251,7 @@ public class BrokerAgent extends Agent {
                                 int numberOfInsurances = typeOfInsurance.get(insuranceRequested);
                                 typeOfInsurance.put(insuranceRequested, numberOfInsurances + 1);
                                 updateRating(Integer.parseInt(finalReply.getContent()));
-                                System.out.println("Broker " + name + " sold insurance to client " );
+                                System.out.println("Broker " + name + " sold insurance to client." );
                                 proposalTerminated = true;
                             } else {
                                 updateRating(Integer.parseInt(finalReply.getContent()));
@@ -287,8 +268,22 @@ public class BrokerAgent extends Agent {
 
         @Override
         public boolean done() {
+            if(proposalTerminated)
+                System.out.println("Broker " + name + " updated rating: " + rating);
             return proposalTerminated;
         }
+    }
+
+
+    private void updateRating(int newRating) {
+        double sum = 0;
+        ratingHistory.add(newRating);
+
+        for (Integer rt : ratingHistory) {
+            sum += rt;
+        }
+        double allRatings = ratingHistory.size();
+        rating = sum / allRatings;
     }
 
     private int calculatePrice(String insuranceRequested, String firstCondition, String secondCondition, String thirdCondition) {
@@ -317,14 +312,14 @@ public class BrokerAgent extends Agent {
                 break;
             case "Health":
                 Health health = new Health(
-                        secondCondition.equals("Car"),
-                        secondCondition.equals("Truck"),
-                        secondCondition.equals("Moto"),
+                        secondCondition.equals("High Risk"),
+                        secondCondition.equals("Medium Risk"),
+                        secondCondition.equals("Low Risk"),
                         Integer.parseInt(firstCondition) < 25,
                         Integer.parseInt(firstCondition) > 25 && Integer.parseInt(firstCondition) < 60,
                         Integer.parseInt(firstCondition) > 60,
-                        Integer.parseInt(thirdCondition) < 2000,
-                        Integer.parseInt(thirdCondition) >= 2000,
+                        Boolean.parseBoolean(thirdCondition),
+                        !Boolean.parseBoolean(thirdCondition),
                         0);
 
                 triggeredRules = eventsTrigger.getTriggeredEvents(health, insuranceRequested.toLowerCase());
@@ -333,14 +328,14 @@ public class BrokerAgent extends Agent {
                 break;
             case "House":
                 House house = new House(
-                        secondCondition.equals("Car"),
-                        secondCondition.equals("Truck"),
-                        secondCondition.equals("Moto"),
+                        secondCondition.equals("House"),
+                        secondCondition.equals("Apartment"),
+                        secondCondition.equals("Farm"),
                         Integer.parseInt(firstCondition) < 25,
                         Integer.parseInt(firstCondition) > 25 && Integer.parseInt(firstCondition) < 60,
                         Integer.parseInt(firstCondition) > 60,
-                        Integer.parseInt(thirdCondition) < 2000,
-                        Integer.parseInt(thirdCondition) >= 2000,
+                        thirdCondition.equals("Rural"),
+                        thirdCondition.equals("Urban"),
                         0);
 
                 triggeredRules = eventsTrigger.getTriggeredEvents(house, insuranceRequested.toLowerCase());
@@ -349,7 +344,7 @@ public class BrokerAgent extends Agent {
                 break;
         }
 
-        System.out.println(String.valueOf(resultPrice));
+        //logger.info(String.valueOf(resultPrice));
         return resultPrice;
     }
 }

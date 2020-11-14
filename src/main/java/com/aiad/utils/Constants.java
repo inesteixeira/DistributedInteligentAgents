@@ -32,4 +32,8 @@ public class Constants {
     public static final String ErrorMessage_KnowledgeBase_KieSessionNull = "KieSession is null.";
 
     public static final String droolsCachePolicies = "vehicle,house,health";
+    public static final String HIGH_RATING = "9";
+    public static final String MEDIUM_HIGH_RATING = "7";
+    public static final String MEDIUM_RATING = "6";
+    public static final String LOW_RATING = "3";
 }

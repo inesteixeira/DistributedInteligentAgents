@@ -1,5 +1,6 @@
-package com.aiad;
+package com.aiad.agents;
 
+import com.aiad.utils.Constants;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -11,7 +12,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
-import java.util.Map;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,7 +51,7 @@ public class ClientAgent extends Agent {
             isNegotiator = Boolean.parseBoolean((String) args[5]);
             maxDiscount = Integer.parseInt((String) args[6]);
             minDiscount = Integer.parseInt((String) args[7]);
-            System.out.println("isNegotiator: " + isNegotiator + " | maxDiscount: " + maxDiscount + " | minDiscount: " + minDiscount);
+            //logger.info("isNegotiator: " + isNegotiator + " | maxDiscount: " + maxDiscount + " | minDiscount: " + minDiscount);
 
             System.out.println("Hello! I'm " + name + " and I need a " + typeOfInsurance + " insurance, please.");
 
@@ -80,6 +81,14 @@ public class ClientAgent extends Agent {
             sequentialBehaviour.addSubBehaviour(new BuyInsurance());
             addBehaviour(sequentialBehaviour);
         }
+
+
+    }
+
+    protected void takeDown() {
+
+        // Printout a dismissal message
+        System.out.println("Client " + name + " terminated.");
     }
 
 
@@ -116,8 +125,13 @@ public class ClientAgent extends Agent {
                     ACLMessage reply = myAgent.receive(mt);
 
                     if (reply != null) {
-                        bestBroker = reply.getAllReplyTo().hasNext() ? (AID) reply.getAllReplyTo().next() : null;
-                        System.out.println( "Broker " + bestBroker.getName() + " is available.");
+                        if (reply.getPerformative() == ACLMessage.PROPOSE) {
+                            bestBroker = reply.getAllReplyTo().hasNext() ? (AID) reply.getAllReplyTo().next() : null;
+                        }
+                        else {
+                            takeDown();
+                        }
+                        //logger.info( "Broker " + bestBroker.getName() + " is available.");
                         step = 2;
                     } else {
                         block();
@@ -138,16 +152,12 @@ public class ClientAgent extends Agent {
 
         @Override
         public void action() {
-            MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(ACLMessage.INFORM),
-                    MessageTemplate.MatchConversationId("insurance-details"));
-
             System.out.println( "Client sends info to broker: " + firstCondition  + "|" + secondCondition + "|" + thirdCondition);
             ACLMessage informMsg = new ACLMessage(ACLMessage.INFORM);
             informMsg.setConversationId("insurance-details");
             informMsg.addReceiver(bestBroker);
             informMsg.setContent(firstCondition  + "|" + secondCondition + "|" + thirdCondition);
             myAgent.send(informMsg);
-            System.out.println( "INFORM INSURANCE CONVERSATION_ID: " + informMsg.getConversationId());
         }
 
         @Override
@@ -193,10 +203,11 @@ public class ClientAgent extends Agent {
                             ACLMessage reply = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                             // Give broker a rating
                             reply.setConversationId("round2-negotiation");
-                            reply.setContent("7");
+                            reply.setContent(Constants.MEDIUM_HIGH_RATING);
                             reply.addReceiver(bestBroker);
                             myAgent.send(reply);
                             System.out.println( "Client buys insurance by fixed price.");
+                            System.out.println( "Client rated the experience with: " + Constants.MEDIUM_HIGH_RATING);
                             proposalTerminated = true;
                         }
                     }
@@ -214,35 +225,38 @@ public class ClientAgent extends Agent {
                             ACLMessage reply = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                             reply.setConversationId("close-deal");
                             // Give broker a rating
-                            reply.setContent("9");
+                            reply.setContent(Constants.HIGH_RATING);
                             reply.addReceiver(bestBroker);
                             myAgent.send(reply);
                             System.out.println( "Client buys insurance with discount proposed.");
+                            System.out.println( "Client rated the experience with: " + Constants.HIGH_RATING);
                             proposalTerminated = true;
                         }
                         else {
                             System.out.println("New Price Proposal: " + newBrokerMsg.getContent());
                             double newPriceProposal = Double.parseDouble(newBrokerMsg.getContent());
-                            double maxPrice = firstPrice * (1 - (minDiscount / 100));
+                            double maxPrice = firstPrice * (1 - (minDiscount / 100.0));
 
                             if(newPriceProposal <= maxPrice){
                                 ACLMessage reply = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                                 reply.setConversationId("close-deal");
                                 // Give broker a rating
-                                reply.setContent("6");
+                                reply.setContent(Constants.MEDIUM_RATING);
                                 reply.addReceiver(bestBroker);
                                 myAgent.send(reply);
                                 System.out.println( "Client accepts new price proposal.");
+                                System.out.println( "Client rated the experience with: " + Constants.MEDIUM_RATING);
                                 proposalTerminated = true;
                             }
                             else {
                                 ACLMessage reply = new ACLMessage(ACLMessage.REFUSE);
                                 reply.setConversationId("close-deal");
                                 // Give broker a rating
-                                reply.setContent("3");
+                                reply.setContent(Constants.LOW_RATING);
                                 reply.addReceiver(bestBroker);
                                 myAgent.send(reply);
                                 System.out.println( "Client refuses new price proposal.");
+                                System.out.println( "Client rated the experience with: " + Constants.LOW_RATING);
                                 proposalTerminated = true;
                             }
                         }

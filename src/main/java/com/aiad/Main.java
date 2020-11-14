@@ -1,9 +1,6 @@
 package com.aiad;
 
-import com.aiad.components.api.DroolsCache;
-import com.aiad.components.api.EventsTrigger;
-import com.aiad.components.impl.DroolsCacheImpl;
-import com.aiad.components.impl.EventsTriggerImpl;
+
 import jade.core.Profile;
 import jade.core.ProfileImpl;
 
@@ -12,9 +9,6 @@ import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 import jade.wrapper.StaleProxyException;
 
-import java.io.IOException;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 public class Main {
 
@@ -42,43 +36,43 @@ public class Main {
 
 		try {
 			AgentController agency = mainContainer.createNewAgent("agency",
-					"com.aiad.AgencyAgent", new Object[0]);
+					"com.aiad.agents.AgencyAgent", new Object[0]);
 
 			AgentController client = mainContainer.createNewAgent("client",
-					"com.aiad.ClientAgent"
+					"com.aiad.agents.ClientAgent"
 					, new String[]{
 							"Ines",
-							"Vehicle",
+							"Health",
 							"23",
-							"Car",
-							"2001",
-							"true",
+							"Medium Risk", // High Medium or Low risk patient
+							"true", // IF TRUE => OBESE ELSE => ANOREXIC
+							"false",
 							"10",
 							"20"});
-			AgentController broker1 = mainContainer.createNewAgent("broker1",
-					"com.aiad.BrokerAgent"
+			AgentController broker1 = mainContainer.createNewAgent("Fred",
+					"com.aiad.agents.BrokerAgent"
 					, new String[]{
 							"Fred",
 							"Vehicle|Health",
 							"0.8",
 							"false",
 							"0"});
-			AgentController broker2 = mainContainer.createNewAgent("broker2",
-					"com.aiad.BrokerAgent"
+			AgentController broker2 = mainContainer.createNewAgent("John",
+					"com.aiad.agents.BrokerAgent"
 					, new String[]{
 							"John",
 							"Health",
 							"0.8",
 							"true",
 							"25"});
-			AgentController broker3 = mainContainer.createNewAgent("broker3",
-					"com.aiad.BrokerAgent"
+			AgentController broker3 = mainContainer.createNewAgent("Mary",
+					"com.aiad.agents.BrokerAgent"
 					, new String[]{
 							"Mary",
 							"Vehicle",
 							"0.65",
 							"true",
-							"20"});
+							"8"});
 			agency.start();
 			client.start();
 			broker1.start();

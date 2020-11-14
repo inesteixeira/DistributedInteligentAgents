@@ -38,13 +38,13 @@ public class EventsTriggerImpl implements EventsTrigger {
 
         Object objectWithPrice = payload;
 
-        logger.info("START kieSession.fireAllRules()");
-        logger.info(objectWithPrice.toString());
+        //logger.info("START kieSession.fireAllRules()");
+        //logger.info(objectWithPrice.toString());
         kieSession.insert(objectWithPrice);
         kieSession.fireAllRules();
 
-        logger.info("Rules fired:" + rulesFired.matchsToString());
-        logger.info("STOP kieSession.fireAllRules()");
+        //logger.info("Rules fired:" + rulesFired.matchsToString());
+        //logger.info("STOP kieSession.fireAllRules()");
 
         kieSession.dispose();
 
